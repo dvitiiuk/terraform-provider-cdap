@@ -36,6 +36,13 @@ func resourceNamespace() *schema.Resource {
 				ForceNew:    true,
 				Description: "The name of the namespace.",
 			},
+			"tolerate_to_delete_error": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				ForceNew:    true,
+				Default:     false,
+				Description: "Should an error during delete be skipped.",
+			},
 		},
 	}
 }
@@ -64,15 +71,24 @@ func resourceNamespaceRead(d *schema.ResourceData, m interface{}) error {
 
 func resourceNamespaceDelete(d *schema.ResourceData, m interface{}) error {
 	config := m.(*Config)
+	tolerate_to_delete_error := d.Get("tolerate_to_delete_error").(bool)
 	name := d.Get("name").(string)
 	addr := urlJoin(config.host, "/v3/namespaces", name)
 
 	req, err := http.NewRequest(http.MethodDelete, addr, nil)
 	if err != nil {
-		return err
+		if tolerate_to_delete_error {
+			return nil
+		} else {
+			return err
+		}
 	}
 	_, err = httpCall(config.httpClient, req)
-	return err
+	if tolerate_to_delete_error {
+		return nil
+	} else {
+		return err
+	}
 }
 
 func resourceNamespaceExists(d *schema.ResourceData, m interface{}) (bool, error) {
